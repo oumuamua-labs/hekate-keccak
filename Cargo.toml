@@ -1,0 +1,45 @@
+[package]
+name = "hekate-keccak"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/oumuamua-labs/hekate-keccak"
+homepage = "https://oumuamua.dev/hekate"
+authors = [
+    "Oumuamua Labs <info@oumuamua.dev>",
+    "Andrei Kochergin <andrei@oumuamua.dev>",
+]
+description = "Keccak-f[1600] AIR chiplet with SHA-3 and SHAKE sponges for the Hekate ZK proving system."
+keywords = ["zk", "cryptography", "keccak", "sha3", "no-std"]
+categories = ["cryptography", "no-std"]
+readme = "README.md"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = ["std", "blake3"]
+std = [
+    "hekate-core/std",
+    "hekate-program/std",
+    "hekate-math/std",
+]
+blake3 = ["hekate-core/blake3"]
+sha2 = ["hekate-core/sha2"]
+sha3 = ["hekate-core/sha3"]
+
+[dependencies]
+hekate-math = { version = "0.6.0", default-features = false }
+hekate-core = { version = "=0.27.2", default-features = false }
+hekate-program = { version = "=0.27.2", default-features = false }
+once_cell = { version = "1.21", default-features = false, features = ["race", "alloc"] }
+
+[dev-dependencies]
+hekate-crypto = { version = "=0.27.2", default-features = false, features = ["std", "blake3"] }
+hekate-verifier = { version = "=0.27.2", default-features = false, features = ["std", "blake3"] }
+hekate-sdk = { version = "=0.27.2", default-features = false, features = ["std", "blake3"] }
+hekate-prover-sys = { version = "=0.27.2", default-features = false, features = ["blake3", "public"] }
+rand = "0.9"
+zk-scribble = "0.1"
+keccak = "0.2"
