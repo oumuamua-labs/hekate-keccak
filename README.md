@@ -18,6 +18,11 @@ Scaling (Apple M3 Max):
   2^24 permutations (671,088): 268 s, 31 GB peak, 20,209 KiB proof
 ```
 
+## Examples
+
+- [Keccak isolated chiplet (standalone AIR)](https://github.com/oumuamua-labs/hekate/blob/main/hekate/examples/keccak.rs)
+- [Keccak inline kernel (CPU AIR with embedded permutation)](https://github.com/oumuamua-labs/hekate/blob/main/hekate/examples/keccak_inline.rs)
+
 ## Security & Audits
 
 > [!WARNING]
