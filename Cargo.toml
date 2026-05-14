@@ -2,7 +2,7 @@
 name = "hekate-keccak"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 license = "Apache-2.0"
 repository = "https://github.com/oumuamua-labs/hekate-keccak"
 homepage = "https://oumuamua.dev/hekate"
