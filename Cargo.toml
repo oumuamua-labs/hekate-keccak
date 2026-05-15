@@ -42,12 +42,3 @@ hekate-sdk = { version = "0.27", default-features = false, features = ["std", "b
 hekate-prover-sys = { version = "0.27", default-features = false, features = ["blake3", "public"] }
 rand = "0.9"
 zk-scribble = "0.1"
-keccak = "0.2"
-criterion = "0.8"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-bincode = { version = "2.0.1", features = ["serde", "alloc"] }
-serde = { version = "1.0", features = ["derive"] }
-
-[[bench]]
-name = "keccak"
-harness = false
