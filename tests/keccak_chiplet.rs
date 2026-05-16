@@ -112,12 +112,12 @@ fn build_cpu_trace(input: &[u64; 25], output: &[u64; 25]) -> ColumnTrace {
     for i in 0..25 {
         tb.set_b64(CpuKeccakColumns::LANES + i, 0, Block64(input[i]))
             .unwrap();
-        tb.set_b64(CpuKeccakColumns::LANES + i, 1, Block64(output[i]))
+        tb.set_b64(CpuKeccakColumns::LANES + i, 24, Block64(output[i]))
             .unwrap();
     }
 
     tb.set_bit(CpuKeccakColumns::SELECTOR, 0, Bit::ONE).unwrap();
-    tb.set_bit(CpuKeccakColumns::SELECTOR, 1, Bit::ONE).unwrap();
+    tb.set_bit(CpuKeccakColumns::SELECTOR, 24, Bit::ONE).unwrap();
 
     tb.build()
 }
@@ -405,7 +405,7 @@ fn exploit_keccak_link_duplicate_cpu_request_rejected() {
 #[cfg_attr(debug_assertions, ignore)]
 fn exploit_cpu_output_tamper() {
     let detected = run_tampered_keccak(|_, cpu| {
-        flip_b64(cpu, CpuKeccakColumns::LANES + 12, 1, 0x01);
+        flip_b64(cpu, CpuKeccakColumns::LANES + 12, 24, 0x01);
     });
 
     assert!(
@@ -422,7 +422,7 @@ fn exploit_consistent_output_forgery() {
         // Round chain must still catch it:
         // next_bit[24] ≠ chi(state[23]).
         flip_b64(keccak, PHYS_LANES, 24, 0x01);
-        flip_b64(cpu, CpuKeccakColumns::LANES, 1, 0x01);
+        flip_b64(cpu, CpuKeccakColumns::LANES, 24, 0x01);
     });
 
     assert!(

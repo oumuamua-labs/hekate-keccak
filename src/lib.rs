@@ -510,7 +510,7 @@ pub fn generate_keccak_trace(
     let default_pairs: Vec<(u32, u32)> = match request_idx_pairs {
         Some(_) => Vec::new(),
         None => (0..calls.len() as u32)
-            .map(|k| (2 * k, 2 * k + 1))
+            .map(|k| (25 * k, 25 * k + 24))
             .collect(),
     };
 
