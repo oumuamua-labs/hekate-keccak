@@ -68,7 +68,9 @@ fn compute_keccak_f(input: [u64; 25]) -> [u64; 25] {
 // =================================================================
 
 #[derive(Clone)]
-struct KeccakTestProgram;
+struct KeccakTestProgram {
+    keccak_rows: usize,
+}
 
 impl Air<F> for KeccakTestProgram {
     fn column_layout(&self) -> &[ColumnType] {
@@ -95,7 +97,7 @@ impl Program<F> for KeccakTestProgram {
 
     fn chiplet_defs(&self) -> hekate_core::errors::Result<Vec<ChipletDef<F>>> {
         Ok(vec![ChipletDef::from_air(&KeccakChiplet::new(
-            KECCAK_ROWS,
+            self.keccak_rows,
         ))?])
     }
 }
@@ -104,36 +106,51 @@ impl Program<F> for KeccakTestProgram {
 // Trace Builders
 // =================================================================
 
-fn build_cpu_trace(input: &[u64; 25], output: &[u64; 25]) -> ColumnTrace {
-    let num_vars = CPU_ROWS.trailing_zeros() as usize;
+fn build_cpu_trace(calls: &[([u64; 25], [u64; 25])], cpu_rows: usize) -> ColumnTrace {
+    let num_vars = cpu_rows.trailing_zeros() as usize;
     let mut tb = TraceBuilder::new(&CpuKeccakColumns::build_layout(), num_vars).unwrap();
 
-    for i in 0..25 {
-        tb.set_b64(CpuKeccakColumns::LANES + i, 0, Block64(input[i]))
+    for (k, (input, output)) in calls.iter().enumerate() {
+        let in_row = 25 * k;
+        let out_row = 25 * k + 24;
+
+        for i in 0..25 {
+            tb.set_b64(CpuKeccakColumns::LANES + i, in_row, Block64(input[i]))
+                .unwrap();
+            tb.set_b64(CpuKeccakColumns::LANES + i, out_row, Block64(output[i]))
+                .unwrap();
+        }
+
+        tb.set_bit(CpuKeccakColumns::SELECTOR, in_row, Bit::ONE)
             .unwrap();
-        tb.set_b64(CpuKeccakColumns::LANES + i, 24, Block64(output[i]))
+        tb.set_bit(CpuKeccakColumns::SELECTOR, out_row, Bit::ONE)
             .unwrap();
     }
-
-    tb.set_bit(CpuKeccakColumns::SELECTOR, 0, Bit::ONE).unwrap();
-    tb.set_bit(CpuKeccakColumns::SELECTOR, 24, Bit::ONE)
-        .unwrap();
 
     tb.build()
 }
 
-fn build_chiplet_trace(input: &[u64; 25]) -> ColumnTrace {
-    let input_block: [Block64; 25] = core::array::from_fn(|i| Block64(input[i]));
-    generate_keccak_trace(&[input_block], None, KECCAK_ROWS).unwrap()
+fn build_chiplet_trace(inputs: &[[u64; 25]], keccak_rows: usize) -> ColumnTrace {
+    let blocks: Vec<[Block64; 25]> = inputs
+        .iter()
+        .map(|s| core::array::from_fn(|i| Block64(s[i])))
+        .collect();
+    generate_keccak_trace(&blocks, None, keccak_rows).unwrap()
 }
 
 // =================================================================
 // Prove + Verify
 // =================================================================
 
-fn prove_and_verify(cpu_trace: ColumnTrace, chiplet_trace: ColumnTrace) -> Result<bool, String> {
-    let air = KeccakTestProgram;
-    let instance = ProgramInstance::new(CPU_ROWS, vec![]);
+fn prove_and_verify(
+    cpu_trace: ColumnTrace,
+    chiplet_trace: ColumnTrace,
+    cpu_rows: usize,
+    keccak_rows: usize,
+) -> Result<bool, String> {
+    let air = KeccakTestProgram { keccak_rows };
+
+    let instance = ProgramInstance::new(cpu_rows, vec![]);
     let witness = ProgramWitness::new(cpu_trace).with_chiplets(vec![chiplet_trace]);
 
     let report = preflight(&air, &instance, &witness).map_err(|e| format!("preflight: {e:?}"))?;
@@ -192,12 +209,15 @@ where
     let input = test_input_state();
     let output = compute_keccak_f(input);
 
-    let mut chiplet_trace = build_chiplet_trace(&input);
-    let mut cpu_trace = build_cpu_trace(&input, &output);
+    let mut chiplet_trace = build_chiplet_trace(&[input], KECCAK_ROWS);
+    let mut cpu_trace = build_cpu_trace(&[(input, output)], CPU_ROWS);
 
     tamper(&mut chiplet_trace, &mut cpu_trace);
 
-    let air = KeccakTestProgram;
+    let air = KeccakTestProgram {
+        keccak_rows: KECCAK_ROWS,
+    };
+
     let instance = ProgramInstance::new(CPU_ROWS, vec![]);
     let witness = ProgramWitness::new(cpu_trace).with_chiplets(vec![chiplet_trace]);
 
@@ -263,12 +283,37 @@ fn keccak_e2e() {
     let input = test_input_state();
     let output = compute_keccak_f(input);
 
-    let cpu_trace = build_cpu_trace(&input, &output);
-    let chiplet_trace = build_chiplet_trace(&input);
+    let cpu_trace = build_cpu_trace(&[(input, output)], CPU_ROWS);
+    let chiplet_trace = build_chiplet_trace(&[input], KECCAK_ROWS);
 
-    match prove_and_verify(cpu_trace, chiplet_trace) {
+    match prove_and_verify(cpu_trace, chiplet_trace, CPU_ROWS, KECCAK_ROWS) {
         Ok(true) => {}
         Ok(false) => panic!("verifier rejected honest proof"),
+        Err(e) => panic!("error: {e}"),
+    }
+}
+
+#[test]
+#[cfg_attr(debug_assertions, ignore)]
+fn keccak_e2e_multi_call_default_pairs() {
+    const ROWS: usize = 64;
+
+    let in_a = test_input_state();
+    let mut in_b = test_input_state();
+    in_b[0] ^= u64::MAX;
+
+    let calls = [
+        (in_a, compute_keccak_f(in_a)),
+        (in_b, compute_keccak_f(in_b)),
+    ];
+    let inputs: Vec<[u64; 25]> = calls.iter().map(|(i, _)| *i).collect();
+
+    let cpu_trace = build_cpu_trace(&calls, ROWS);
+    let chiplet_trace = build_chiplet_trace(&inputs, ROWS);
+
+    match prove_and_verify(cpu_trace, chiplet_trace, ROWS, ROWS) {
+        Ok(true) => {}
+        Ok(false) => panic!("verifier rejected honest multi-call proof"),
         Err(e) => panic!("error: {e}"),
     }
 }
@@ -518,10 +563,13 @@ fn scribble_keccak_flip_selector_caught() {
     let input = test_input_state();
     let output = compute_keccak_f(input);
 
-    let cpu_trace = build_cpu_trace(&input, &output);
-    let chiplet_trace = build_chiplet_trace(&input);
+    let cpu_trace = build_cpu_trace(&[(input, output)], CPU_ROWS);
+    let chiplet_trace = build_chiplet_trace(&[input], KECCAK_ROWS);
 
-    let air = KeccakTestProgram;
+    let air = KeccakTestProgram {
+        keccak_rows: KECCAK_ROWS,
+    };
+
     let instance = ProgramInstance::new(CPU_ROWS, vec![]);
     let witness = ProgramWitness::new(cpu_trace).with_chiplets(vec![chiplet_trace]);
 
