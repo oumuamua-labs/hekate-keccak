@@ -496,8 +496,9 @@ impl KeccakWitness {
 /// columns (same layout as sponge mode).
 ///
 /// `request_idx_pairs = None` defaults to
-/// `(2k, 2k+1)`; pass `Some` for non-consecutive
-/// partner emit positions.
+/// `(25k, 25k+24)` to match CPU-side row layout
+/// (input row 25k, output row 25k+24); pass `Some`
+/// for non-default partner emit positions.
 ///
 /// Use this instead of `KeccakSpongeNative::generate_trace`
 /// when the caller controls the input states directly
