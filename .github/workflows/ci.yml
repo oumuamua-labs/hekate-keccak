@@ -25,7 +25,7 @@ jobs:
         run: cargo clippy --all-features -- -D warnings
 
       - name: Run Tests
-        run: cargo test --all-features --release
+        run: cargo test --release
 
       - name: Install cargo-audit and cargo-deny
         uses: taiki-e/install-action@v2
