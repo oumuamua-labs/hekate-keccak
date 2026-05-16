@@ -42,7 +42,6 @@ const KECCAK_ROWS: usize = 32;
 
 const PHYS_LANES: usize = 0;
 const PHYS_RC: usize = 25;
-const PHYS_REQUEST_IDX: usize = 26;
 const PHYS_S_ROUND: usize = 27;
 const PHYS_S_IN_OUT: usize = 28;
 
@@ -117,7 +116,8 @@ fn build_cpu_trace(input: &[u64; 25], output: &[u64; 25]) -> ColumnTrace {
     }
 
     tb.set_bit(CpuKeccakColumns::SELECTOR, 0, Bit::ONE).unwrap();
-    tb.set_bit(CpuKeccakColumns::SELECTOR, 24, Bit::ONE).unwrap();
+    tb.set_bit(CpuKeccakColumns::SELECTOR, 24, Bit::ONE)
+        .unwrap();
 
     tb.build()
 }
